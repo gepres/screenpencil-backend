@@ -11,26 +11,28 @@ Decisión: **PostgreSQL en Neon + Prisma** ([ADR-0001](adr/0001-postgres-neon-pr
 - **Branching:** crea una rama de BD por entorno (p. ej. `main` para prod, `dev` para desarrollo)
   para no mezclar datos.
 
-## Prisma (ORM) — versión 7
+## Prisma (ORM) — versión 7 (config real)
 
-> Usamos **Prisma 7**, que cambia respecto a versiones previas:
-> - Generador **`prisma-client`** (no `prisma-client-js`), que emite el cliente a **`generated/prisma`** (gitignored).
-> - El cliente se importa desde **`generated/prisma/client`**, no desde `@prisma/client`.
-> - La URL de la BD se inyecta vía **`prisma.config.ts`** (`process.env.DATABASE_URL`, con `dotenv`),
->   no con `url = env(...)` dentro de `schema.prisma`.
+> **Prisma 7** cambió cosas importantes; así está montado este proyecto (verificado en runtime):
+> - **Generador `prisma-client-js`** (el clásico): emite el cliente a `node_modules/@prisma/client`
+>   y se importa desde **`@prisma/client`**. *No usamos* el generador nuevo `prisma-client` porque
+>   emite ESM y choca con NestJS/CommonJS.
+> - **`url` ya NO va en `schema.prisma`**. La conexión llega de dos formas:
+>   - **Migrate (CLI):** desde **`prisma.config.ts`** (`process.env.DATABASE_URL`, con `dotenv`).
+>   - **Cliente (runtime):** por un **driver adapter** `@prisma/adapter-pg`, al que le pasamos la
+>     `DATABASE_URL` desde la config tipada en `PrismaService`.
 
 - **Esquema** en `prisma/schema.prisma` (fuente de verdad de los modelos).
-- **Cliente tipado** generado con `npx prisma generate`.
-- **Acceso:** SOLO vía `PrismaService` inyectable (envuelve `PrismaClient`, gestiona connect/disconnect).
+- **Cliente** generado con `npx prisma generate` (a `node_modules/@prisma/client`).
+- **Acceso:** SOLO vía `PrismaService` inyectable.
 
 ```prisma
-// prisma/schema.prisma (estado de arranque, ya creado)
+// prisma/schema.prisma (estado real)
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"   // genera a node_modules/@prisma/client (CommonJS-friendly)
 }
 datasource db {
-  provider = "postgresql"   // la URL llega desde prisma.config.ts
+  provider = "postgresql"          // sin `url`: va por adapter (runtime) y prisma.config.ts (migrate)
 }
 
 /// Snapshot cacheado de métricas agregadas (respeta rate limits de los proveedores).
@@ -45,8 +47,20 @@ model MetricSnapshot {
 }
 ```
 
-> En el `PrismaService` importa el cliente desde la ruta generada, p. ej.
-> `import { PrismaClient } from '../../generated/prisma/client';`
+```ts
+// src/prisma/prisma.service.ts (esencia)
+import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+
+constructor(config: ConfigService) {
+  const connectionString = config.getOrThrow<string>('database.url');
+  super({ adapter: new PrismaPg({ connectionString }) });
+}
+```
+
+> Dependencias del adapter: `@prisma/adapter-pg`, `pg` (+ `@types/pg`).
+> Nota: con `sslmode=require` de Neon, `pg` emite un warning (cambiará su semántica de SSL en una
+> versión futura); cuando hagamos hardening lo dejaremos explícito (`sslmode=verify-full`).
 
 ## Migraciones
 

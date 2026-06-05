@@ -4,11 +4,13 @@
 // Docs del proyecto: docs/04-database.md
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  // Generador clásico: emite JS listo a node_modules/@prisma/client (compatible con NestJS/CommonJS).
+  provider = "prisma-client-js"
 }
 
 datasource db {
+  // Prisma 7: la URL ya NO va aquí. Migrate la toma de prisma.config.ts y el cliente
+  // recibe la conexión vía driver adapter (@prisma/adapter-pg) en PrismaService.
   provider = "postgresql"
 }
 

@@ -3,17 +3,33 @@
 El `AnalyticsModule` agrega dos fuentes y expone una API unificada para el panel `/admin` de la
 landing. El backend guarda los tokens; la landing **nunca** los ve.
 
-## Endpoints (propuestos)
+> **Estado (F2): implementado** — `GET /analytics/summary` funciona (agrega, cachea en Postgres,
+> tolera fallos, protegido por API key). Pendiente: verificar el **mapeo de campos** de cada
+> proveedor contra respuestas reales (marcado `TODO(verificar)` en los servicios), `events` y
+> `timeseries`.
 
-| Método | Ruta | Devuelve |
-|--------|------|----------|
-| `GET` | `/analytics/summary?period=7d` | KPIs combinados (visitas, páginas vistas, top páginas, países, fuentes, eventos). |
-| `GET` | `/analytics/timeseries?period=30d` | Serie temporal de visitas/páginas por día. |
-| `GET` | `/analytics/events?period=7d` | Eventos de GoatCounter (descargas, donaciones, idioma, demo…). |
-| `GET` | `/health` | Estado del servicio + BD. |
+## Endpoints
+
+| Método | Ruta | Estado | Devuelve |
+|--------|------|:------:|----------|
+| `GET` | `/analytics/summary?period=7d` | ✅ | Resumen combinado por fuente (totales, top páginas, países, fuentes). |
+| `GET` | `/analytics/timeseries?period=30d` | ⏳ | Serie temporal de visitas/páginas por día. |
+| `GET` | `/analytics/events?period=7d` | ⏳ | Eventos de GoatCounter (descargas, donaciones, idioma, demo…). |
+| `GET` | `/health` | ✅ | Estado del servicio + BD. |
 
 - Protegidos por `ApiKeyGuard` (cabecera `x-api-key` = `ADMIN_API_KEY`).
-- `period` admite relativos (`7d`, `30d`) y rangos (`start`/`end` ISO).
+- `period` admite los presets `24h`, `7d` (def.), `30d`, `90d` (enum validado).
+
+### Probar en local
+```bash
+# Arranca la API (puerto libre; 3000 puede estar ocupado por otro proyecto)
+PORT=3333 ADMIN_API_KEY=mi-clave npm run start:dev
+
+curl http://localhost:3333/health
+curl -H "x-api-key: mi-clave" "http://localhost:3333/analytics/summary?period=7d"
+```
+Sin `x-api-key` válida → `401`. Con `GOATCOUNTER_*`/`CLOUDFLARE_*` vacíos, las fuentes salen `null`
+y `partial:true` (el endpoint igual responde).
 
 ## Fuente A — GoatCounter (REST)
 

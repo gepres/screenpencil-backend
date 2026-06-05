@@ -1,0 +1,45 @@
+# Dependencias
+/node_modules
+
+# Compilado
+/dist
+/build
+
+# Variables de entorno (NUNCA subir secretos). Se versiona solo .env.example
+.env
+.env.local
+.env.*.local
+
+# Prisma: se versiona schema.prisma y /migrations; el cliente se genera en node_modules
+# (nada extra que ignorar aquí salvo que generes a una carpeta propia)
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Cobertura de tests
+/coverage
+
+# Editores / SO
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+.DS_Store
+Thumbs.db
+
+# Caché de herramientas
+.eslintcache
+*.tsbuildinfo
+
+# Prisma 7: cliente generado
+/generated/prisma
+
+# Skills auto-instaladas por el harness (regenerables) — versionamos solo las propias
+/.agents/
+/skills-lock.json
+/.claude/skills/*
+!/.claude/skills/screenpencil-backend-standards/

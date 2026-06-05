@@ -1,0 +1,25 @@
+// Esquema de Prisma (fuente de verdad de los modelos).
+// Prisma 7: el cliente se genera en ../generated/prisma (gitignored) y la URL de la
+// base de datos se inyecta desde prisma.config.ts (process.env.DATABASE_URL).
+// Docs del proyecto: docs/04-database.md
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Snapshot cacheado de métricas agregadas de analítica.
+/// Respeta los rate limits de GoatCounter/Cloudflare y da un histórico propio.
+model MetricSnapshot {
+  id        String   @id @default(cuid())
+  source    String // "goatcounter" | "cloudflare" | "combined"
+  period    String // "7d" | "30d" | "2026-06" ...
+  payload   Json // resultado agregado tal cual se sirve a /admin
+  createdAt DateTime @default(now())
+
+  @@index([source, period, createdAt])
+}

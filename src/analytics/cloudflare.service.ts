@@ -6,7 +6,8 @@ import type { MetricRange, ProviderSummary } from './analytics.types';
 
 const GRAPHQL_URL = 'https://api.cloudflare.com/client/v4/graphql';
 
-// Consulta RUM de Web Analytics. TODO(verificar): nombres exactos de campos contra el schema real.
+// Consulta RUM de Web Analytics (verificada en vivo). OJO: `siteTag` NO es el token del beacon;
+// es el tag del dataset RUM (descubrible agrupando por `dimensions { siteTag }`).
 const RUM_QUERY = `
 query Rum($account: String!, $site: String!, $start: String!, $end: String!) {
   viewer {
@@ -125,7 +126,9 @@ export class CloudflareService {
           views: g.count ?? 0,
         })),
         referrers: (account?.referrers ?? []).map((g) => ({
-          host: g.dimensions?.refererHost ?? '(directo)',
+          host: g.dimensions?.refererHost?.trim()
+            ? g.dimensions.refererHost
+            : '(directo)',
           views: g.count ?? 0,
         })),
       };

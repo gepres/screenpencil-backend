@@ -4,8 +4,9 @@ import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import type { MetricRange, ProviderSummary } from './analytics.types';
 
-// --- Formas (parciales) de las respuestas de la API de GoatCounter ---
-// TODO(verificar): confirmar los nombres de campos contra respuestas reales con un token.
+// --- Formas (parciales) de las respuestas de la API de GoatCounter (verificadas en vivo) ---
+// /stats/total -> { total }, /stats/hits -> { hits:[{path,count,event}] },
+// /stats/toprefs y /stats/locations -> { stats:[{id,name,count}] }
 interface GcTotal {
   total?: number;
   total_events?: number;
@@ -13,6 +14,7 @@ interface GcTotal {
 interface GcHit {
   path?: string;
   count?: number;
+  event?: boolean; // GoatCounter mezcla páginas y eventos en /stats/hits; este flag los distingue.
 }
 interface GcHitsResponse {
   hits?: GcHit[];
@@ -67,15 +69,19 @@ export class GoatCounterService {
       return {
         totals: {
           pageviews: total.total ?? 0,
-          // TODO(verificar): GoatCounter no separa "visits" en /stats/total; refinar al ver datos.
+          // GoatCounter no separa "visits" en /stats/total; lo dejamos en 0 (usar Cloudflare para visitas).
           visits: 0,
         },
-        topPages: (hits.hits ?? []).slice(0, 10).map((h) => ({
-          path: h.path ?? '(desconocido)',
-          views: h.count ?? 0,
-        })),
+        // Solo páginas reales (event:false); los eventos van aparte (flow/*, showcase/*…).
+        topPages: (hits.hits ?? [])
+          .filter((h) => !h.event)
+          .slice(0, 10)
+          .map((h) => ({
+            path: h.path ?? '(desconocido)',
+            views: h.count ?? 0,
+          })),
         referrers: (refs.stats ?? []).slice(0, 10).map((r) => ({
-          host: r.name ?? r.id ?? '(desconocido)',
+          host: r.name?.trim() ? r.name : '(directo)',
           views: r.count ?? 0,
         })),
         countries: (locs.stats ?? [])

@@ -20,6 +20,7 @@ async function bootstrap() {
   app.enableShutdownHooks();
 
   const port = config.get<number>('port') ?? 3000;
-  await app.listen(port);
+  // 0.0.0.0: necesario para que el host/contenedor (Render, Railway, Docker) exponga el puerto.
+  await app.listen(port, '0.0.0.0');
 }
 void bootstrap();

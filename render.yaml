@@ -1,0 +1,30 @@
+# Blueprint de Render (https://render.com). Deploy del backend con Docker.
+# Importante: las variables con `sync: false` se piden en el panel (NO se versionan).
+services:
+  - type: web
+    name: screenpencil-backend
+    runtime: docker
+    plan: free            # capa gratis (con cold start); sube a un plan pago para evitarlo
+    region: oregon        # ajústalo a tu preferencia
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CORS_ORIGIN
+        value: https://gepres.github.io   # origen de la landing (ajusta si usas dominio propio)
+      - key: GOATCOUNTER_SITE
+        value: screenpencil
+      # --- Secretos: se introducen en el panel de Render (sync: false) ---
+      - key: DATABASE_URL
+        sync: false
+      - key: GOATCOUNTER_TOKEN
+        sync: false
+      - key: CLOUDFLARE_API_TOKEN
+        sync: false
+      - key: CLOUDFLARE_ACCOUNT_ID
+        sync: false
+      - key: CLOUDFLARE_SITE_TAG
+        sync: false
+      - key: ADMIN_API_KEY
+        sync: false
+    # PORT lo inyecta Render automáticamente; la app lo lee de la config.

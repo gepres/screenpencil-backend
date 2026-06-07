@@ -8,34 +8,47 @@ Dos piezas independientes: **la base de datos** (Neon) y **la API** (un host con
 - Migraciones en CI/CD: `npx prisma migrate deploy` (usa la cadena **directa**, sin pooler).
 - Runtime de la API: usa la cadena **con pooler** (PgBouncer) para no agotar conexiones.
 
-## 2) API — opciones de hosting (Node)
-La API NestJS necesita un host con Node. Opciones (free/low cost):
+## 2) API — host Node (Opción A elegida)
+
+> Cloudflare Workers/Pages **no** sirven: son isolates, no Node, y `@prisma/adapter-pg` usa TCP.
+> Por eso la API va en un **host Node**. El repo ya trae **`Dockerfile`** (portable) y **`render.yaml`**.
 
 | Host | Notas |
 |------|-------|
-| **Railway** ⭐ | Despliegue desde repo, env vars sencillas, build Node automático. (Créditos, no free perpetuo.) |
-| **Render** | Web Service Node; free tier (con cold start) o instancias baratas. |
-| **Fly.io** | Contenedor; buen free/low cost, regiones cercanas. |
+| **Render** ⭐ | Web Service con Docker; free tier (cold start). Blueprint `render.yaml` incluido. |
+| **Railway** | Deploy desde repo (detecta el Dockerfile); por créditos, no free perpetuo. |
+| **Fly.io** | Contenedor (usa el mismo Dockerfile); free/low cost. |
 
-> Recomendado para empezar: **Railway** (o Render). Mantén el host de la API y Neon separados.
+### Artefactos incluidos
+- **`Dockerfile`** — build determinista (instala deps, `prisma generate` por postinstall, `nest build`).
+  `CMD` = `npm run start:prod` → corre `prisma migrate deploy` (prestart) y luego `node dist/main`.
+- **`render.yaml`** — blueprint de Render: define el servicio + variables (secretos con `sync:false`).
+- **`package.json`** — `postinstall: prisma generate`, `prestart:prod: prisma migrate deploy`, `engines.node >=20`.
 
-## Pasos genéricos
-1. Conecta el repo al host.
-2. **Build:** `npm ci && npm run build` · **Start:** `node dist/main` (o `npm run start:prod`).
-3. Configura las **variables de entorno** (las de [`.env.example`](../.env.example)) en el panel del host.
-4. Paso de **migraciones** en el deploy: `npx prisma migrate deploy` antes de arrancar.
-5. `prisma generate` debe correr en el build (el `postinstall` de Prisma suele hacerlo).
+### Deploy en Render (recomendado)
+1. Sube el repo a GitHub (ya está).
+2. Render → **New → Blueprint** → elige el repo → detecta `render.yaml`.
+3. Render pedirá los **secretos** (`sync:false`): `DATABASE_URL`, `GOATCOUNTER_TOKEN`,
+   `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_SITE_TAG`, `ADMIN_API_KEY`. Pégalos.
+4. Deploy. Quedará en `https://screenpencil-backend.onrender.com` (o el nombre que asigne).
+5. Verifica `https://<url>/health` → `{"status":"ok","db":"up"}`.
+
+### Deploy en Railway (alternativa)
+- New Project → Deploy from GitHub repo → detecta el `Dockerfile`. Añade las mismas variables en
+  *Variables*. Railway expone el puerto vía `PORT` (la app lo lee).
 
 ## Configuración de la API en producción
-- `NODE_ENV=production`.
-- `CORS_ORIGIN` = dominio real de la landing (p. ej. `https://gepres.github.io`).
-- `DATABASE_URL` = cadena **con pooler** de Neon.
-- Tokens (`GOATCOUNTER_TOKEN`, `CLOUDFLARE_API_TOKEN`, `ADMIN_API_KEY`) como **secrets** del host.
+- `NODE_ENV=production` · `CORS_ORIGIN=https://gepres.github.io` (origen de la landing).
+- `DATABASE_URL`: usa la cadena **directa** de Neon (no la del pooler). En un host con instancia
+  persistente (Render/Railway) la conexión directa es la adecuada y evita problemas de `migrate` con PgBouncer.
+- Tokens y `ADMIN_API_KEY` como **secrets** del host (nunca en el repo).
 
-## Conectar la landing
-- La landing (`/admin`) llama a `https://<api-host>/analytics/...` con la cabecera `x-api-key`.
-- Si `/admin` corre en el navegador, la API key quedaría visible → en F4 conviene mover a **auth real**
-  (JWT/sesión) o poner la API detrás de **Cloudflare Access**. Documentar al implementar.
+## Conectar la landing (`/admin`)
+- El `/admin` de la landing tiene un form (⚙) donde se pone la **URL del backend** y la **API key**
+  (se guardan en `localStorage`). Tras desplegar, pon ahí `https://<api-host>` y la `ADMIN_API_KEY`.
+- Asegúrate de que `CORS_ORIGIN` en el host = el origen de la landing (`https://gepres.github.io`).
+- La API key vive en el navegador (limitación de un panel estático). En F4 conviene **auth real**
+  (JWT/sesión) o poner la API detrás de **Cloudflare Access**.
 
 ## Checklist de release
 - [ ] `build` + `lint` + `test` en verde.

@@ -10,9 +10,11 @@ async function bootstrap() {
   // Validación global de DTOs: descarta campos no declarados y transforma tipos.
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
-  // CORS limitado a los orígenes configurados (la landing). Vacío => permitir todos (dev).
+  // CORS: en desarrollo reflejamos cualquier origen (facilita probar el /admin local);
+  // en producción, solo los orígenes configurados (la landing).
+  const isProd = config.get<string>('nodeEnv') === 'production';
   const origins = config.get<string[]>('corsOrigin') ?? [];
-  app.enableCors({ origin: origins.length ? origins : true });
+  app.enableCors({ origin: isProd ? (origins.length ? origins : false) : true });
 
   // Cierra conexiones (Prisma) limpiamente al apagar.
   app.enableShutdownHooks();

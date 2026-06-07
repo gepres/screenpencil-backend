@@ -8,10 +8,12 @@ WORKDIR /app
 
 # 1) Dependencias (incluye dev: necesarias para `nest build` y la CLI `prisma migrate`).
 #    Copiamos primero el schema para que el postinstall (`prisma generate`) funcione.
+#    Usamos `npm install` (no `npm ci`): el lockfile generado en Windows no incluye las
+#    dependencias opcionales específicas de Linux (p. ej. @emnapi/*), y `npm ci` es estricto.
 COPY package*.json ./
 COPY prisma ./prisma
 COPY prisma.config.ts ./
-RUN npm ci
+RUN npm install --no-audit --no-fund
 
 # 2) Código fuente + build.
 COPY . .

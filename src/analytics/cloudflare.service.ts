@@ -2,7 +2,11 @@ import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
-import type { MetricRange, ProviderSummary } from './analytics.types';
+import type {
+  MetricRange,
+  ProviderSummary,
+  SeriesPoint,
+} from './analytics.types';
 
 const GRAPHQL_URL = 'https://api.cloudflare.com/client/v4/graphql';
 
@@ -32,6 +36,19 @@ query Rum($account: String!, $site: String!, $start: String!, $end: String!) {
   }
 }`;
 
+// Consulta de serie diaria (visitas/páginas por día).
+const TIMESERIES_QUERY = `
+query RumDaily($account: String!, $site: String!, $start: String!, $end: String!) {
+  viewer {
+    accounts(filter: { accountTag: $account }) {
+      byDay: rumPageloadEventsAdaptiveGroups(
+        limit: 1000, orderBy: [date_ASC]
+        filter: { siteTag: $site, date_geq: $start, date_leq: $end }
+      ) { count sum { visits } dimensions { date } }
+    }
+  }
+}`;
+
 interface CfGroup {
   count?: number;
   sum?: { visits?: number };
@@ -39,6 +56,7 @@ interface CfGroup {
     requestPath?: string;
     countryName?: string;
     refererHost?: string;
+    date?: string;
   };
 }
 interface CfAccount {
@@ -46,6 +64,7 @@ interface CfAccount {
   topPages?: CfGroup[];
   countries?: CfGroup[];
   referrers?: CfGroup[];
+  byDay?: CfGroup[];
 }
 interface CfResponse {
   data?: { viewer?: { accounts?: CfAccount[] } };
@@ -135,6 +154,52 @@ export class CloudflareService {
     } catch (error) {
       this.logger.warn(
         `Cloudflare no respondió: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return null;
+    }
+  }
+
+  /** Serie diaria de páginas vistas y visitas (dataset RUM agrupado por día). */
+  async getTimeseries(range: MetricRange): Promise<SeriesPoint[] | null> {
+    if (!this.isConfigured()) return null;
+    try {
+      const response = await firstValueFrom(
+        this.http.post<CfResponse>(
+          GRAPHQL_URL,
+          {
+            query: TIMESERIES_QUERY,
+            variables: {
+              account: this.accountId,
+              site: this.siteTag,
+              start: range.start,
+              end: range.end,
+            },
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${this.apiToken}`,
+              'Content-Type': 'application/json',
+            },
+            timeout: 8000,
+          },
+        ),
+      );
+      const body = response.data;
+      if (body.errors?.length) {
+        this.logger.warn(
+          `Cloudflare GraphQL (serie) devolvió errores: ${body.errors[0]?.message}`,
+        );
+        return null;
+      }
+      const days = body.data?.viewer?.accounts?.[0]?.byDay ?? [];
+      return days.map((g) => ({
+        date: g.dimensions?.date ?? '',
+        views: g.count ?? 0,
+        visits: g.sum?.visits ?? 0,
+      }));
+    } catch (error) {
+      this.logger.warn(
+        `Cloudflare (serie) no respondió: ${error instanceof Error ? error.message : String(error)}`,
       );
       return null;
     }

@@ -2,7 +2,12 @@ import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
-import type { MetricRange, ProviderSummary } from './analytics.types';
+import type {
+  EventItem,
+  MetricRange,
+  ProviderSummary,
+  SeriesPoint,
+} from './analytics.types';
 
 // --- Formas (parciales) de las respuestas de la API de GoatCounter (verificadas en vivo) ---
 // /stats/total -> { total }, /stats/hits -> { hits:[{path,count,event}] },
@@ -10,6 +15,8 @@ import type { MetricRange, ProviderSummary } from './analytics.types';
 interface GcTotal {
   total?: number;
   total_events?: number;
+  // /stats/total trae el desglose diario: cada día con 24 valores horarios.
+  stats?: { day?: string; hourly?: number[] }[];
 }
 interface GcHit {
   path?: string;
@@ -91,6 +98,46 @@ export class GoatCounterService {
     } catch (error) {
       this.logger.warn(
         `GoatCounter no respondió: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return null;
+    }
+  }
+
+  /** Eventos (los `event:true` de /stats/hits): descargas, donaciones, idioma, demo, showcase… */
+  async getEvents(range: MetricRange): Promise<EventItem[] | null> {
+    if (!this.isConfigured()) return null;
+    try {
+      const hits = await this.get<GcHitsResponse>('/stats/hits', {
+        start: range.start,
+        end: range.end,
+      });
+      return (hits.hits ?? [])
+        .filter((h) => h.event)
+        .map((h) => ({ name: h.path ?? '(desconocido)', count: h.count ?? 0 }))
+        .sort((a, b) => b.count - a.count);
+    } catch (error) {
+      this.logger.warn(
+        `GoatCounter (eventos) no respondió: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return null;
+    }
+  }
+
+  /** Serie diaria de páginas vistas (suma de las 24 horas de cada día de /stats/total). */
+  async getTimeseries(range: MetricRange): Promise<SeriesPoint[] | null> {
+    if (!this.isConfigured()) return null;
+    try {
+      const total = await this.get<GcTotal>('/stats/total', {
+        start: range.start,
+        end: range.end,
+      });
+      return (total.stats ?? []).map((d) => ({
+        date: d.day ?? '',
+        views: (d.hourly ?? []).reduce((sum, h) => sum + (h || 0), 0),
+      }));
+    } catch (error) {
+      this.logger.warn(
+        `GoatCounter (serie) no respondió: ${error instanceof Error ? error.message : String(error)}`,
       );
       return null;
     }

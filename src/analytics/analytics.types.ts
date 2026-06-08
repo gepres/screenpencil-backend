@@ -30,3 +30,35 @@ export interface AnalyticsSummary {
   goatcounter: ProviderSummary | null;
   cloudflare: ProviderSummary | null;
 }
+
+/** Un evento de GoatCounter (descargas, donaciones, idioma, demo, showcase, scroll…). */
+export interface EventItem {
+  name: string;
+  count: number;
+}
+
+/** Respuesta de /analytics/events (los eventos los provee GoatCounter). */
+export interface AnalyticsEvents {
+  period: string;
+  range: MetricRange;
+  updatedAt: string;
+  partial: boolean;
+  events: EventItem[];
+}
+
+/** Un punto diario de la serie temporal. */
+export interface SeriesPoint {
+  date: string; // YYYY-MM-DD
+  views: number;
+  visits?: number;
+}
+
+/** Respuesta de /analytics/timeseries (serie por día, por fuente). */
+export interface AnalyticsTimeseries {
+  period: string;
+  range: MetricRange;
+  updatedAt: string;
+  partial: boolean;
+  goatcounter: SeriesPoint[] | null;
+  cloudflare: SeriesPoint[] | null;
+}

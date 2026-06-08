@@ -14,7 +14,9 @@ async function bootstrap() {
   // en producción, solo los orígenes configurados (la landing).
   const isProd = config.get<string>('nodeEnv') === 'production';
   const origins = config.get<string[]>('corsOrigin') ?? [];
-  app.enableCors({ origin: isProd ? (origins.length ? origins : false) : true });
+  app.enableCors({
+    origin: isProd ? (origins.length ? origins : false) : true,
+  });
 
   // Cierra conexiones (Prisma) limpiamente al apagar.
   app.enableShutdownHooks();

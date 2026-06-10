@@ -3,18 +3,18 @@
 El `AnalyticsModule` agrega dos fuentes y expone una API unificada para el panel `/admin` de la
 landing. El backend guarda los tokens; la landing **nunca** los ve.
 
-> **Estado (F2): implementado** — `GET /analytics/summary` funciona (agrega, cachea en Postgres,
-> tolera fallos, protegido por API key). Pendiente: verificar el **mapeo de campos** de cada
-> proveedor contra respuestas reales (marcado `TODO(verificar)` en los servicios), `events` y
-> `timeseries`.
+> **Estado (F2): implementado y en producción** (Render) — los **tres** endpoints (`summary`, `events`,
+> `timeseries`) funcionan: agregan, cachean en Postgres (`MetricSnapshot`), toleran fallos y van
+> protegidos por API key. Pendiente menor: afinar el **mapeo de campos** de cada proveedor contra
+> respuestas reales (marcado `TODO(verificar)` en los servicios) y **tests** de `events`/`timeseries`.
 
 ## Endpoints
 
 | Método | Ruta | Estado | Devuelve |
 |--------|------|:------:|----------|
 | `GET` | `/analytics/summary?period=7d` | ✅ | Resumen combinado por fuente (totales, top páginas, países, fuentes). |
-| `GET` | `/analytics/timeseries?period=30d` | ⏳ | Serie temporal de visitas/páginas por día. |
-| `GET` | `/analytics/events?period=7d` | ⏳ | Eventos de GoatCounter (descargas, donaciones, idioma, demo…). |
+| `GET` | `/analytics/timeseries?period=30d` | ✅ | Serie temporal de visitas/páginas por día (por fuente). |
+| `GET` | `/analytics/events?period=7d` | ✅ | Eventos de GoatCounter (descargas, donaciones, idioma, demo…). |
 | `GET` | `/health` | ✅ | Estado del servicio + BD. |
 
 - Protegidos por `ApiKeyGuard` (cabecera `x-api-key` = `ADMIN_API_KEY`).

@@ -1,98 +1,78 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# ScreenPencil — Backend / API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+**Backend del ecosistema [ScreenPencil](https://gepres.github.io/screenpencil-landing/)** (la app gratuita
+para dibujar y anotar sobre toda la pantalla). Construido con **NestJS 11 + TypeScript**.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+> **Primera capacidad — _Analytics admin_:** agrega los datos de **GoatCounter** (REST) y **Cloudflare
+> Web Analytics** (GraphQL), los **cachea** en Postgres y los expone como una **API unificada** que
+> consume el panel `/admin` de la landing **sin exponer los tokens** en el navegador. Diseñado para
+> **crecer** (auth real, releases, más dominios).
 
-## Description
+- **Estado:** **desplegado en producción** en Render → `https://screenpencil-backend.onrender.com`.
+- **Stack:** NestJS 11 · TypeScript · **PostgreSQL** en **Neon** (serverless) · **Prisma 7** (`@prisma/adapter-pg`) · `@nestjs/config`.
+- Documentación completa en [`docs/`](docs/00-INDEX.md) · guía para Claude Code en [`CLAUDE.md`](CLAUDE.md).
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+---
 
-## Project setup
+## Arquitectura en una línea
 
-```bash
-$ npm install
-```
+Módulos de Nest (`analytics/`, `health/`, futuro `auth/`) con capas **`Controller → Service → (PrismaService | cliente de API externa)`**.
+El backend es el **único** que habla con GoatCounter/Cloudflare (guarda los tokens); la landing solo llama
+a este backend. Ver [docs/02 — Arquitectura](docs/02-architecture.md).
 
-## Compile and run the project
+## Endpoints
 
-```bash
-# development
-$ npm run start
+| Método | Ruta | Auth | Devuelve |
+|--------|------|:----:|----------|
+| `GET` | `/health` | — | Estado del servicio + BD (`{"status":"ok","db":"up"}`). |
+| `GET` | `/analytics/summary?period=7d` | `x-api-key` | Resumen combinado (totales, top páginas, países, fuentes, eventos). |
+| `GET` | `/analytics/events?period=7d` | `x-api-key` | Eventos de GoatCounter (descargas, donaciones, idioma, demo…). |
+| `GET` | `/analytics/timeseries?period=30d` | `x-api-key` | Serie temporal de visitas/páginas por día. |
 
-# watch mode
-$ npm run start:dev
+- Protegidos por `ApiKeyGuard` (cabecera `x-api-key` = `ADMIN_API_KEY`). `period` ∈ `24h｜7d｜30d｜90d`.
+- **Tolerancia a fallos:** si una fuente falla, devuelve la otra + `partial:true` (no 500). Caché en
+  Postgres (`MetricSnapshot`, TTL ~10 min). Detalle en [docs/06](docs/06-analytics-integration.md).
 
-# production mode
-$ npm run start:prod
-```
-
-## Run tests
+## Quick start
 
 ```bash
-# unit tests
-$ npm run test
+npm install
+npx prisma generate                       # cliente tipado
 
-# e2e tests
-$ npm run test:e2e
+# API en watch (usa un puerto libre; 3000 suele estar ocupado en local)
+PORT=3333 ADMIN_API_KEY=mi-clave npm run start:dev
 
-# test coverage
-$ npm run test:cov
+curl http://localhost:3333/health
+curl -H "x-api-key: mi-clave" "http://localhost:3333/analytics/summary?period=7d"
 ```
 
-## Deployment
+Otros comandos: `npm run build` · `npm run lint` · `npm test` · `npx prisma studio` · `npx prisma migrate dev`.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## Configuración (variables de entorno)
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Toda env se valida al arrancar (`@nestjs/config`); nada de `process.env` suelto. Secretos **solo** en el
+entorno, nunca en el repo:
+`DATABASE_URL`, `GOATCOUNTER_SITE`, `GOATCOUNTER_TOKEN`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`,
+`CLOUDFLARE_SITE_TAG`, `ADMIN_API_KEY`, `CORS_ORIGIN`, `PORT`.
+Detalle y `.env.example` en [docs/05 — Configuración](docs/05-configuration.md).
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+## Despliegue
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+**Render** (Web Service con Docker; `Dockerfile` + `render.yaml` incluidos). `prisma migrate deploy` corre
+en el `prestart`; pega los secretos (`sync:false`) y verifica `/health`. Pasos en
+[docs/08 — Despliegue](docs/08-deployment.md).
 
-## Resources
+> Gotchas conocidos: Prisma 7 usa **driver adapter** (`@prisma/adapter-pg`, sin `url` en el schema); en
+> Docker usar `npm install` (no `npm ci`: el lockfile de Windows omite opcionales de Linux como
+> `@emnapi/*`); base `node:22-slim`. El `CLOUDFLARE_SITE_TAG` del GraphQL **no** es el token del beacon de
+> la landing; `ADMIN_API_KEY` en **hex** (la base64 con `=` rompe la cabecera).
 
-Check out a few resources that may come in handy when working with NestJS:
+## Ecosistema
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+- **App de escritorio:** `screenpencil-app` (código privado) → vitrina de descargas `gepres/screenpencil-releases`.
+- **Landing:** [`screenpencil-landing`](https://gepres.github.io/screenpencil-landing/) — consume el `/admin` de este backend.
+- **Backend (este repo):** `screenpencil-backend`.
 
-## Support
+## Licencia
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+NestJS es [MIT](https://github.com/nestjs/nest/blob/master/LICENSE). Licencia del proyecto: por definir.

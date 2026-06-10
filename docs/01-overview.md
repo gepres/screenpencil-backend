@@ -29,13 +29,13 @@ Detalle en [06 — Integración de analítica](06-analytics-integration.md).
 
 ## Roadmap (orientativo)
 
-| Fase | Alcance |
-|------|---------|
-| **F1 — Base** | Esqueleto Nest, Config tipada, Prisma+Neon, health check. |
-| **F2 — Analytics** | `AnalyticsModule`: GoatCounter + Cloudflare + agregación + caché. API key. |
-| **F3 — Persistencia** | Snapshots de métricas en Postgres (histórico propio, independiente de los proveedores). |
-| **F4 — Auth real** | `AuthModule` (JWT / sesiones) para el panel admin, multiusuario. |
-| **F5 — Más dominios** | Releases/actualizaciones de la app, donaciones, etc. (según necesidad). |
+| Fase | Alcance | Estado |
+|------|---------|--------|
+| **F1 — Base** | Esqueleto Nest, Config tipada, Prisma+Neon, health check. | ✅ |
+| **F2 — Analytics** | `AnalyticsModule`: GoatCounter + Cloudflare + agregación + caché + API key. Endpoints `summary`/`events`/`timeseries`. | ✅ **en producción** (Render) |
+| **F3 — Persistencia** | Snapshots de métricas en Postgres (`MetricSnapshot`, caché con TTL ~10 min). | 🟡 caché ✅; histórico de largo plazo: parcial |
+| **F4 — Auth real** | `AuthModule` (JWT / sesiones) para el panel admin, multiusuario. | ⏳ |
+| **F5 — Más dominios** | Releases/actualizaciones de la app, donaciones, etc. (según necesidad). | ⏳ |
 
 ## Fuera de alcance (por ahora)
 - No reemplaza a GoatCounter/Cloudflare; los **agrega**.

@@ -39,11 +39,11 @@ export class AnalyticsService {
   ) {}
 
   /** Resumen combinado (GoatCounter + Cloudflare), por fuente. */
-  async getSummary(period: AnalyticsPeriod): Promise<AnalyticsSummary> {
-    const cached = await this.readCache<AnalyticsSummary>('combined', period);
+  async getSummary(period: AnalyticsPeriod, customRange?: MetricRange): Promise<AnalyticsSummary> {
+    const { key, range } = this.resolve(period, customRange);
+    const cached = await this.readCache<AnalyticsSummary>('combined', key);
     if (cached) return cached;
 
-    const range = this.resolveRange(period);
     const [gc, cf] = await Promise.allSettled([
       this.goatcounter.getSummary(range),
       this.cloudflare.getSummary(range),
@@ -52,39 +52,36 @@ export class AnalyticsService {
     const cloudflare = cf.status === 'fulfilled' ? cf.value : null;
 
     const payload: AnalyticsSummary = {
-      ...this.meta(period, range, goatcounter === null || cloudflare === null),
+      ...this.meta(key, range, goatcounter === null || cloudflare === null),
       goatcounter,
       cloudflare,
     };
-    await this.writeCache('combined', period, payload);
+    await this.writeCache('combined', key, payload);
     return payload;
   }
 
   /** Eventos (los provee GoatCounter): descargas, donaciones, idioma, demo, showcase, scroll… */
-  async getEvents(period: AnalyticsPeriod): Promise<AnalyticsEvents> {
-    const cached = await this.readCache<AnalyticsEvents>('events', period);
+  async getEvents(period: AnalyticsPeriod, customRange?: MetricRange): Promise<AnalyticsEvents> {
+    const { key, range } = this.resolve(period, customRange);
+    const cached = await this.readCache<AnalyticsEvents>('events', key);
     if (cached) return cached;
 
-    const range = this.resolveRange(period);
     const events = await this.goatcounter.getEvents(range);
 
     const payload: AnalyticsEvents = {
-      ...this.meta(period, range, events === null),
+      ...this.meta(key, range, events === null),
       events: events ?? [],
     };
-    await this.writeCache('events', period, payload);
+    await this.writeCache('events', key, payload);
     return payload;
   }
 
   /** Serie temporal diaria por fuente (visitas/páginas por día). */
-  async getTimeseries(period: AnalyticsPeriod): Promise<AnalyticsTimeseries> {
-    const cached = await this.readCache<AnalyticsTimeseries>(
-      'timeseries',
-      period,
-    );
+  async getTimeseries(period: AnalyticsPeriod, customRange?: MetricRange): Promise<AnalyticsTimeseries> {
+    const { key, range } = this.resolve(period, customRange);
+    const cached = await this.readCache<AnalyticsTimeseries>('timeseries', key);
     if (cached) return cached;
 
-    const range = this.resolveRange(period);
     const [gc, cf] = await Promise.allSettled([
       this.goatcounter.getTimeseries(range),
       this.cloudflare.getTimeseries(range),
@@ -93,70 +90,84 @@ export class AnalyticsService {
     const cloudflare = cf.status === 'fulfilled' ? cf.value : null;
 
     const payload: AnalyticsTimeseries = {
-      ...this.meta(period, range, goatcounter === null || cloudflare === null),
+      ...this.meta(key, range, goatcounter === null || cloudflare === null),
       goatcounter,
       cloudflare,
     };
-    await this.writeCache('timeseries', period, payload);
+    await this.writeCache('timeseries', key, payload);
     return payload;
   }
 
   /** Dispositivos (navegador · SO · tamaño de pantalla), de GoatCounter. */
-  async getDevices(period: AnalyticsPeriod): Promise<AnalyticsDevices> {
-    const cached = await this.readCache<AnalyticsDevices>('devices', period);
+  async getDevices(period: AnalyticsPeriod, customRange?: MetricRange): Promise<AnalyticsDevices> {
+    const { key, range } = this.resolve(period, customRange);
+    const cached = await this.readCache<AnalyticsDevices>('devices', key);
     if (cached) return cached;
 
-    const range = this.resolveRange(period);
     const devices = await this.goatcounter.getDevices(range);
 
     const payload: AnalyticsDevices = {
-      ...this.meta(period, range, devices === null),
+      ...this.meta(key, range, devices === null),
       browsers: devices?.browsers ?? [],
       systems: devices?.systems ?? [],
       sizes: devices?.sizes ?? [],
     };
-    await this.writeCache('devices', period, payload);
+    await this.writeCache('devices', key, payload);
     return payload;
   }
 
   /** Rendimiento de carga (FCP, tiempo total) desde Cloudflare RUM. */
-  async getVitals(period: AnalyticsPeriod): Promise<AnalyticsVitals> {
-    const cached = await this.readCache<AnalyticsVitals>('vitals', period);
+  async getVitals(period: AnalyticsPeriod, customRange?: MetricRange): Promise<AnalyticsVitals> {
+    const { key, range } = this.resolve(period, customRange);
+    const cached = await this.readCache<AnalyticsVitals>('vitals', key);
     if (cached) return cached;
 
-    const range = this.resolveRange(period);
     const vitals = await this.cloudflare.getVitals(range);
 
     const payload: AnalyticsVitals = {
-      ...this.meta(period, range, vitals === null),
+      ...this.meta(key, range, vitals === null),
       fcp: vitals?.fcp ?? null,
       loadTime: vitals?.loadTime ?? null,
     };
-    await this.writeCache('vitals', period, payload);
+    await this.writeCache('vitals', key, payload);
     return payload;
   }
 
   /** Serie diaria por evento (top N), de GoatCounter. */
-  async getActionSeries(period: AnalyticsPeriod): Promise<AnalyticsActionSeries> {
-    const cached = await this.readCache<AnalyticsActionSeries>('action-series', period);
+  async getActionSeries(period: AnalyticsPeriod, customRange?: MetricRange): Promise<AnalyticsActionSeries> {
+    const { key, range } = this.resolve(period, customRange);
+    const cached = await this.readCache<AnalyticsActionSeries>('action-series', key);
     if (cached) return cached;
 
-    const range = this.resolveRange(period);
     const events = await this.goatcounter.getEventSeries(range);
 
     const payload: AnalyticsActionSeries = {
-      ...this.meta(period, range, events === null),
+      ...this.meta(key, range, events === null),
       events: events ?? [],
     };
-    await this.writeCache('action-series', period, payload);
+    await this.writeCache('action-series', key, payload);
     return payload;
   }
 
   // --- Helpers ---
 
   /** Campos comunes de toda respuesta de analítica. */
-  private meta(period: AnalyticsPeriod, range: MetricRange, partial: boolean) {
+  private meta(period: string, range: MetricRange, partial: boolean) {
     return { period, range, updatedAt: new Date().toISOString(), partial };
+  }
+
+  /**
+   * Resuelve la clave de caché y el rango de fechas. Si `customRange` trae un rango válido
+   * (start ≤ end) se usa con clave `start_end`; si no, el preset `period` (comportamiento previo).
+   */
+  private resolve(
+    period: AnalyticsPeriod,
+    customRange?: MetricRange,
+  ): { key: string; range: MetricRange } {
+    if (customRange && customRange.start && customRange.end && customRange.start <= customRange.end) {
+      return { key: `${customRange.start}_${customRange.end}`, range: customRange };
+    }
+    return { key: period, range: this.resolveRange(period) };
   }
 
   /** Devuelve el snapshot cacheado si está dentro del TTL; si no, null. */

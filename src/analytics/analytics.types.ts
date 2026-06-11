@@ -46,6 +46,22 @@ export interface AnalyticsEvents {
   events: EventItem[];
 }
 
+/** Un evento con su total y su serie diaria. */
+export interface EventSeries {
+  name: string;
+  total: number;
+  series: { date: string; count: number }[];
+}
+
+/** Respuesta de /analytics/action-series (serie diaria por evento, top N). */
+export interface AnalyticsActionSeries {
+  period: string;
+  range: MetricRange;
+  updatedAt: string;
+  partial: boolean;
+  events: EventSeries[];
+}
+
 /** Un punto diario de la serie temporal. */
 export interface SeriesPoint {
   date: string; // YYYY-MM-DD

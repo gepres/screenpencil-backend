@@ -3,6 +3,7 @@ import { ApiKeyGuard } from '../common/guards/api-key.guard';
 import { AnalyticsService } from './analytics.service';
 import { PeriodQueryDto } from './dto/period-query.dto';
 import type {
+  AnalyticsActionSeries,
   AnalyticsDevices,
   AnalyticsEvents,
   AnalyticsSummary,
@@ -50,5 +51,11 @@ export class AnalyticsController {
   @Get('vitals')
   getVitals(@Query() query: PeriodQueryDto): Promise<AnalyticsVitals> {
     return this.analytics.getVitals(query.period);
+  }
+
+  /** Serie diaria por evento (top N), de GoatCounter. */
+  @Get('action-series')
+  getActionSeries(@Query() query: PeriodQueryDto): Promise<AnalyticsActionSeries> {
+    return this.analytics.getActionSeries(query.period);
   }
 }

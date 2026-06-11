@@ -5,6 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import type {
   DeviceRow,
   EventItem,
+  EventSeries,
   MetricRange,
   ProviderSummary,
   SeriesPoint,
@@ -23,6 +24,8 @@ interface GcHit {
   path?: string;
   count?: number;
   event?: boolean; // GoatCounter mezcla páginas y eventos en /stats/hits; este flag los distingue.
+  // Con daily=true cada hit trae su desglose diario.
+  stats?: { day?: string; daily?: number; hourly?: number[] }[];
 }
 interface GcHitsResponse {
   hits?: GcHit[];
@@ -119,6 +122,35 @@ export class GoatCounterService {
     } catch (error) {
       this.logger.warn(
         `GoatCounter (eventos) no respondió: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return null;
+    }
+  }
+
+  /** Serie diaria por evento (top N), vía /stats/hits con daily=true. */
+  async getEventSeries(range: MetricRange, topN = 8): Promise<EventSeries[] | null> {
+    if (!this.isConfigured()) return null;
+    try {
+      const hits = await this.get<GcHitsResponse>('/stats/hits', {
+        start: range.start,
+        end: range.end,
+        daily: 'true',
+      });
+      return (hits.hits ?? [])
+        .filter((h) => h.event)
+        .map((h) => ({
+          name: h.path ?? '(desconocido)',
+          total: h.count ?? 0,
+          series: (h.stats ?? []).map((s) => ({
+            date: s.day ?? '',
+            count: s.daily ?? (s.hourly ?? []).reduce((a, n) => a + (n || 0), 0),
+          })),
+        }))
+        .sort((a, b) => b.total - a.total)
+        .slice(0, topN);
+    } catch (error) {
+      this.logger.warn(
+        `GoatCounter (serie por evento) no respondió: ${error instanceof Error ? error.message : String(error)}`,
       );
       return null;
     }

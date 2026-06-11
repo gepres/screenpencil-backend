@@ -5,6 +5,7 @@ import { AnalyticsPeriod } from './dto/period-query.dto';
 import { GoatCounterService } from './goatcounter.service';
 import { CloudflareService } from './cloudflare.service';
 import type {
+  AnalyticsActionSeries,
   AnalyticsDevices,
   AnalyticsEvents,
   AnalyticsSummary,
@@ -132,6 +133,22 @@ export class AnalyticsService {
       loadTime: vitals?.loadTime ?? null,
     };
     await this.writeCache('vitals', period, payload);
+    return payload;
+  }
+
+  /** Serie diaria por evento (top N), de GoatCounter. */
+  async getActionSeries(period: AnalyticsPeriod): Promise<AnalyticsActionSeries> {
+    const cached = await this.readCache<AnalyticsActionSeries>('action-series', period);
+    if (cached) return cached;
+
+    const range = this.resolveRange(period);
+    const events = await this.goatcounter.getEventSeries(range);
+
+    const payload: AnalyticsActionSeries = {
+      ...this.meta(period, range, events === null),
+      events: events ?? [],
+    };
+    await this.writeCache('action-series', period, payload);
     return payload;
   }
 

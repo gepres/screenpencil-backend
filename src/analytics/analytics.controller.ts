@@ -11,8 +11,12 @@ import type {
 
 /**
  * API de analítica para el panel /admin de la landing. Protegida por API key (x-api-key).
+ *
+ * Se sirve bajo DOS prefijos: `analytics` (histórico) y `panel` (neutro). Los bloqueadores de
+ * anuncios/rastreo (uBlock, Brave, AdBlock…) bloquean por filtro cualquier URL con "analytics"
+ * o "events" (ERR_BLOCKED_BY_CLIENT), así que el panel usa `/panel/*` y `actions` en vez de `events`.
  */
-@Controller('analytics')
+@Controller(['analytics', 'panel'])
 @UseGuards(ApiKeyGuard)
 export class AnalyticsController {
   constructor(private readonly analytics: AnalyticsService) {}
@@ -23,8 +27,8 @@ export class AnalyticsController {
     return this.analytics.getSummary(query.period);
   }
 
-  /** Eventos de GoatCounter (descargas, donaciones, idioma, demo, showcase…). */
-  @Get('events')
+  /** Acciones/eventos de GoatCounter (descargas, donaciones, idioma, demo, showcase, scroll…). */
+  @Get(['events', 'actions'])
   getEvents(@Query() query: PeriodQueryDto): Promise<AnalyticsEvents> {
     return this.analytics.getEvents(query.period);
   }

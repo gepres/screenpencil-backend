@@ -3,6 +3,7 @@ import { ApiKeyGuard } from '../common/guards/api-key.guard';
 import { AnalyticsService } from './analytics.service';
 import { PeriodQueryDto } from './dto/period-query.dto';
 import type {
+  AnalyticsDevices,
   AnalyticsEvents,
   AnalyticsSummary,
   AnalyticsTimeseries,
@@ -32,5 +33,11 @@ export class AnalyticsController {
   @Get('timeseries')
   getTimeseries(@Query() query: PeriodQueryDto): Promise<AnalyticsTimeseries> {
     return this.analytics.getTimeseries(query.period);
+  }
+
+  /** Dispositivos: navegador, SO y tamaño de pantalla (GoatCounter). */
+  @Get('devices')
+  getDevices(@Query() query: PeriodQueryDto): Promise<AnalyticsDevices> {
+    return this.analytics.getDevices(query.period);
   }
 }

@@ -13,8 +13,9 @@ landing. El backend guarda los tokens; la landing **nunca** los ve.
 | Método | Ruta | Estado | Devuelve |
 |--------|------|:------:|----------|
 | `GET` | `/analytics/summary?period=7d` | ✅ | Resumen combinado por fuente (totales, top páginas, países, fuentes). |
-| `GET` | `/analytics/timeseries?period=30d` | ✅ | Serie temporal de visitas/páginas por día (por fuente). |
-| `GET` | `/analytics/events?period=7d` | ✅ | Eventos de GoatCounter (descargas, donaciones, idioma, demo…). |
+| `GET` | `/analytics/timeseries?period=30d` | ✅ | Serie diaria de visitas/páginas por fuente. Cada punto de GoatCounter incluye `hourly[24]` (heatmap). |
+| `GET` | `/analytics/events?period=7d` | ✅ | Eventos de GoatCounter (descargas, donaciones, idioma, demo, showcase, secciones, scroll…). |
+| `GET` | `/analytics/devices?period=7d` | ✅ | Navegador · SO · tamaño de pantalla (GoatCounter `/stats/browsers\|systems\|sizes`). |
 | `GET` | `/health` | ✅ | Estado del servicio + BD. |
 
 - Protegidos por `ApiKeyGuard` (cabecera `x-api-key` = `ADMIN_API_KEY`).

@@ -5,6 +5,7 @@ import { AnalyticsPeriod } from './dto/period-query.dto';
 import { GoatCounterService } from './goatcounter.service';
 import { CloudflareService } from './cloudflare.service';
 import type {
+  AnalyticsDevices,
   AnalyticsEvents,
   AnalyticsSummary,
   AnalyticsTimeseries,
@@ -95,6 +96,24 @@ export class AnalyticsService {
       cloudflare,
     };
     await this.writeCache('timeseries', period, payload);
+    return payload;
+  }
+
+  /** Dispositivos (navegador · SO · tamaño de pantalla), de GoatCounter. */
+  async getDevices(period: AnalyticsPeriod): Promise<AnalyticsDevices> {
+    const cached = await this.readCache<AnalyticsDevices>('devices', period);
+    if (cached) return cached;
+
+    const range = this.resolveRange(period);
+    const devices = await this.goatcounter.getDevices(range);
+
+    const payload: AnalyticsDevices = {
+      ...this.meta(period, range, devices === null),
+      browsers: devices?.browsers ?? [],
+      systems: devices?.systems ?? [],
+      sizes: devices?.sizes ?? [],
+    };
+    await this.writeCache('devices', period, payload);
     return payload;
   }
 

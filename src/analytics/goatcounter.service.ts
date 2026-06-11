@@ -3,6 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import type {
+  DeviceRow,
   EventItem,
   MetricRange,
   ProviderSummary,
@@ -134,10 +135,44 @@ export class GoatCounterService {
       return (total.stats ?? []).map((d) => ({
         date: d.day ?? '',
         views: (d.hourly ?? []).reduce((sum, h) => sum + (h || 0), 0),
+        // Desglose horario (24 valores) para el heatmap del panel.
+        hourly: d.hourly ?? [],
       }));
     } catch (error) {
       this.logger.warn(
         `GoatCounter (serie) no respondió: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return null;
+    }
+  }
+
+  /** Dispositivos: navegador, sistema operativo y tamaño de pantalla (top 10 c/u). */
+  async getDevices(range: MetricRange): Promise<{
+    browsers: DeviceRow[];
+    systems: DeviceRow[];
+    sizes: DeviceRow[];
+  } | null> {
+    if (!this.isConfigured()) return null;
+    try {
+      const params = { start: range.start, end: range.end };
+      const [browsers, systems, sizes] = await Promise.all([
+        this.get<GcStatsResponse>('/stats/browsers', params),
+        this.get<GcStatsResponse>('/stats/systems', params),
+        this.get<GcStatsResponse>('/stats/sizes', params),
+      ]);
+      const map = (r: GcStatsResponse): DeviceRow[] =>
+        (r.stats ?? []).slice(0, 10).map((s) => ({
+          name: s.name?.trim() ? s.name : '(desconocido)',
+          count: s.count ?? 0,
+        }));
+      return {
+        browsers: map(browsers),
+        systems: map(systems),
+        sizes: map(sizes),
+      };
+    } catch (error) {
+      this.logger.warn(
+        `GoatCounter (dispositivos) no respondió: ${error instanceof Error ? error.message : String(error)}`,
       );
       return null;
     }

@@ -51,6 +51,25 @@ export interface SeriesPoint {
   date: string; // YYYY-MM-DD
   views: number;
   visits?: number;
+  /** Desglose horario del día (24 valores). Lo provee GoatCounter; alimenta el heatmap. */
+  hourly?: number[];
+}
+
+/** Una fila del desglose de dispositivos (navegador, SO o tamaño de pantalla). */
+export interface DeviceRow {
+  name: string;
+  count: number;
+}
+
+/** Respuesta de /analytics/devices (navegador · SO · tamaño de pantalla; de GoatCounter). */
+export interface AnalyticsDevices {
+  period: string;
+  range: MetricRange;
+  updatedAt: string;
+  partial: boolean;
+  browsers: DeviceRow[];
+  systems: DeviceRow[];
+  sizes: DeviceRow[];
 }
 
 /** Respuesta de /analytics/timeseries (serie por día, por fuente). */

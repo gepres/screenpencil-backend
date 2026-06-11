@@ -3,10 +3,15 @@
 El `AnalyticsModule` agrega dos fuentes y expone una API unificada para el panel `/admin` de la
 landing. El backend guarda los tokens; la landing **nunca** los ve.
 
-> **Estado: implementado y en producción** (Render) — los **cuatro** endpoints (`summary`,
-> `events`/`actions`, `timeseries`, `devices`) funcionan: agregan, cachean en Postgres
+> **Estado: implementado y en producción** (Render) — los **cinco** endpoints (`summary`,
+> `events`/`actions`, `timeseries`, `devices`, `vitals`) funcionan: agregan, cachean en Postgres
 > (`MetricSnapshot`), toleran fallos y van protegidos por API key. Pendiente menor: **tests** de
-> `getEvents`/`getTimeseries`/`getDevices`.
+> `getEvents`/`getTimeseries`/`getDevices`/`getVitals`.
+>
+> **`vitals` (verificar campos):** consulta `rumPageloadEventsAdaptiveGroups.quantiles` de Cloudflare
+> con `firstContentfulPaint*` y `pageLoadTime*`. Cada métrica va en su propia query (un nombre de campo
+> inválido solo anula esa métrica). Si una sale siempre vacía, el nombre exacto del campo `quantiles`
+> puede diferir en el esquema — revisar el `logger.warn('Cloudflare vitals (…) devolvió errores')`.
 
 ## Endpoints
 
@@ -16,6 +21,7 @@ landing. El backend guarda los tokens; la landing **nunca** los ve.
 | `GET` | `/analytics/timeseries?period=30d` | ✅ | Serie diaria de visitas/páginas por fuente. Cada punto de GoatCounter incluye `hourly[24]` (heatmap). |
 | `GET` | `/analytics/events?period=7d` | ✅ | Eventos de GoatCounter (descargas, donaciones, idioma, demo, showcase, secciones, scroll…). |
 | `GET` | `/analytics/devices?period=7d` | ✅ | Navegador · SO · tamaño de pantalla (GoatCounter `/stats/browsers\|systems\|sizes`). |
+| `GET` | `/analytics/vitals?period=7d` | ✅ | Rendimiento de carga: FCP y tiempo total (p50/p75, ms) del dataset RUM de Cloudflare. |
 | `GET` | `/health` | ✅ | Estado del servicio + BD. |
 
 - Protegidos por `ApiKeyGuard` (cabecera `x-api-key` = `ADMIN_API_KEY`).

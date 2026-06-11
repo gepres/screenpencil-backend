@@ -9,6 +9,7 @@ import type {
   AnalyticsEvents,
   AnalyticsSummary,
   AnalyticsTimeseries,
+  AnalyticsVitals,
   MetricRange,
 } from './analytics.types';
 
@@ -114,6 +115,23 @@ export class AnalyticsService {
       sizes: devices?.sizes ?? [],
     };
     await this.writeCache('devices', period, payload);
+    return payload;
+  }
+
+  /** Rendimiento de carga (FCP, tiempo total) desde Cloudflare RUM. */
+  async getVitals(period: AnalyticsPeriod): Promise<AnalyticsVitals> {
+    const cached = await this.readCache<AnalyticsVitals>('vitals', period);
+    if (cached) return cached;
+
+    const range = this.resolveRange(period);
+    const vitals = await this.cloudflare.getVitals(range);
+
+    const payload: AnalyticsVitals = {
+      ...this.meta(period, range, vitals === null),
+      fcp: vitals?.fcp ?? null,
+      loadTime: vitals?.loadTime ?? null,
+    };
+    await this.writeCache('vitals', period, payload);
     return payload;
   }
 

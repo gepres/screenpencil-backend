@@ -72,6 +72,24 @@ export interface AnalyticsDevices {
   sizes: DeviceRow[];
 }
 
+/** Una métrica de rendimiento con percentiles (milisegundos). */
+export interface VitalMetric {
+  p50: number;
+  p75: number;
+}
+
+/** Respuesta de /analytics/vitals — rendimiento de carga (Cloudflare RUM). */
+export interface AnalyticsVitals {
+  period: string;
+  range: MetricRange;
+  updatedAt: string;
+  partial: boolean;
+  /** First Contentful Paint (ms). */
+  fcp: VitalMetric | null;
+  /** Tiempo total de carga de página (ms). */
+  loadTime: VitalMetric | null;
+}
+
 /** Respuesta de /analytics/timeseries (serie por día, por fuente). */
 export interface AnalyticsTimeseries {
   period: string;

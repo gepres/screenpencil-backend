@@ -6,6 +6,7 @@ import type {
   MetricRange,
   ProviderSummary,
   SeriesPoint,
+  VitalMetric,
 } from './analytics.types';
 
 const GRAPHQL_URL = 'https://api.cloudflare.com/client/v4/graphql';
@@ -203,5 +204,79 @@ export class CloudflareService {
       );
       return null;
     }
+  }
+
+  /**
+   * Percentiles (P50/P75) de una métrica de rendimiento del dataset RUM (en ms).
+   * Cada métrica va en su PROPIA consulta: si el nombre de campo `quantiles` no
+   * existe en el esquema, solo falla esa métrica (devuelve null), no las demás.
+   * Métricas válidas conocidas: `firstContentfulPaint`, `pageLoadTime`.
+   */
+  private async fetchQuantile(
+    range: MetricRange,
+    metric: string,
+  ): Promise<VitalMetric | null> {
+    const query = `query Vital($account: String!, $site: String!, $start: String!, $end: String!) {
+      viewer { accounts(filter: { accountTag: $account }) {
+        g: rumPageloadEventsAdaptiveGroups(limit: 1, filter: { siteTag: $site, date_geq: $start, date_leq: $end }) {
+          quantiles { ${metric}P50 ${metric}P75 }
+        }
+      } }
+    }`;
+    try {
+      const response = await firstValueFrom(
+        this.http.post<CfResponse>(
+          GRAPHQL_URL,
+          {
+            query,
+            variables: {
+              account: this.accountId,
+              site: this.siteTag,
+              start: range.start,
+              end: range.end,
+            },
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${this.apiToken}`,
+              'Content-Type': 'application/json',
+            },
+            timeout: 8000,
+          },
+        ),
+      );
+      const body = response.data;
+      if (body.errors?.length) {
+        this.logger.warn(
+          `Cloudflare vitals (${metric}) devolvió errores: ${body.errors[0]?.message}`,
+        );
+        return null;
+      }
+      const q = (
+        body.data?.viewer?.accounts?.[0] as
+          | { g?: { quantiles?: Record<string, number> }[] }
+          | undefined
+      )?.g?.[0]?.quantiles;
+      if (!q) return null;
+      return { p50: q[`${metric}P50`] ?? 0, p75: q[`${metric}P75`] ?? 0 };
+    } catch (error) {
+      this.logger.warn(
+        `Cloudflare vitals (${metric}) no respondió: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return null;
+    }
+  }
+
+  /** Rendimiento de carga (FCP y tiempo total) desde el dataset RUM. */
+  async getVitals(
+    range: MetricRange,
+  ): Promise<{ fcp: VitalMetric | null; loadTime: VitalMetric | null } | null> {
+    if (!this.isConfigured()) return null;
+    const [fcp, loadTime] = await Promise.all([
+      this.fetchQuantile(range, 'firstContentfulPaint'),
+      this.fetchQuantile(range, 'pageLoadTime'),
+    ]);
+    if (!fcp && !loadTime) return null;
+    return { fcp, loadTime };
   }
 }

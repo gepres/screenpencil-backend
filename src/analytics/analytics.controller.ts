@@ -7,6 +7,7 @@ import type {
   AnalyticsEvents,
   AnalyticsSummary,
   AnalyticsTimeseries,
+  AnalyticsVitals,
 } from './analytics.types';
 
 /**
@@ -43,5 +44,11 @@ export class AnalyticsController {
   @Get('devices')
   getDevices(@Query() query: PeriodQueryDto): Promise<AnalyticsDevices> {
     return this.analytics.getDevices(query.period);
+  }
+
+  /** Rendimiento de carga (FCP, tiempo total) desde Cloudflare RUM. */
+  @Get('vitals')
+  getVitals(@Query() query: PeriodQueryDto): Promise<AnalyticsVitals> {
+    return this.analytics.getVitals(query.period);
   }
 }

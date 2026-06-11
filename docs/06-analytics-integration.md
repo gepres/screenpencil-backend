@@ -3,10 +3,10 @@
 El `AnalyticsModule` agrega dos fuentes y expone una API unificada para el panel `/admin` de la
 landing. El backend guarda los tokens; la landing **nunca** los ve.
 
-> **Estado (F2): implementado y en producción** (Render) — los **tres** endpoints (`summary`, `events`,
-> `timeseries`) funcionan: agregan, cachean en Postgres (`MetricSnapshot`), toleran fallos y van
-> protegidos por API key. Pendiente menor: afinar el **mapeo de campos** de cada proveedor contra
-> respuestas reales (marcado `TODO(verificar)` en los servicios) y **tests** de `events`/`timeseries`.
+> **Estado: implementado y en producción** (Render) — los **cuatro** endpoints (`summary`,
+> `events`/`actions`, `timeseries`, `devices`) funcionan: agregan, cachean en Postgres
+> (`MetricSnapshot`), toleran fallos y van protegidos por API key. Pendiente menor: **tests** de
+> `getEvents`/`getTimeseries`/`getDevices`.
 
 ## Endpoints
 
@@ -20,6 +20,13 @@ landing. El backend guarda los tokens; la landing **nunca** los ve.
 
 - Protegidos por `ApiKeyGuard` (cabecera `x-api-key` = `ADMIN_API_KEY`).
 - `period` admite los presets `24h`, `7d` (def.), `30d`, `90d` (enum validado).
+
+> **Prefijo neutro `/panel` (anti-adblock).** El controlador responde bajo **dos** prefijos:
+> `analytics` (histórico) y **`panel`** (neutro), y `events` también como **`actions`**. Los
+> bloqueadores de anuncios/rastreo (uBlock, Brave, AdBlock…) tumban por filtro cualquier URL con
+> "analytics"/"events" → `ERR_BLOCKED_BY_CLIENT` y el panel no carga **ningún** dato. Por eso el
+> `/admin` usa `GET /panel/{summary,timeseries,actions,devices}`. Definido en `analytics.controller.ts`
+> con `@Controller(['analytics','panel'])` y `@Get(['events','actions'])`.
 
 ### Probar en local
 ```bash
